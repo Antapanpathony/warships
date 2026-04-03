@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Naval Warfare — Historical Naval Combat</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════ MAIN MENU ═══ -->
+<div id="main-menu">
+  <div class="menu-bg"></div>
+  <div class="menu-content">
+    <h1 class="game-title">NAVAL WARFARE</h1>
+    <p class="game-subtitle">Historical Naval Combat Simulator</p>
+
+    <!-- Ship Selection -->
+    <section class="section-block" id="ship-selection">
+      <h2>Select Your Vessel</h2>
+      <div class="ship-cards">
+        <div class="ship-card selected" data-ship="battleship">
+          <div class="ship-silhouette battleship-sil"></div>
+          <h3>BATTLESHIP</h3>
+          <p class="ship-class">e.g. USS Iowa · IJN Yamato · HMS Warspite</p>
+          <div class="ship-stats">
+            <div class="stat-row"><span>Armament</span><div class="bar"><div class="fill" style="width:95%"></div></div></div>
+            <div class="stat-row"><span>Armour</span><div class="bar"><div class="fill" style="width:90%"></div></div></div>
+            <div class="stat-row"><span>Speed</span><div class="bar"><div class="fill" style="width:38%"></div></div></div>
+            <div class="stat-row"><span>HP</span><div class="bar"><div class="fill" style="width:100%"></div></div></div>
+          </div>
+          <p class="ship-desc">16-inch guns. Heavy belt armour. Slow but nearly indestructible. The hammer of the fleet.</p>
+        </div>
+
+        <div class="ship-card" data-ship="cruiser">
+          <div class="ship-silhouette cruiser-sil"></div>
+          <h3>HEAVY CRUISER</h3>
+          <p class="ship-class">e.g. USS Pensacola · IJN Takao · HMS London</p>
+          <div class="ship-stats">
+            <div class="stat-row"><span>Armament</span><div class="bar"><div class="fill" style="width:65%"></div></div></div>
+            <div class="stat-row"><span>Armour</span><div class="bar"><div class="fill" style="width:48%"></div></div></div>
+            <div class="stat-row"><span>Speed</span><div class="bar"><div class="fill" style="width:70%"></div></div></div>
+            <div class="stat-row"><span>HP</span><div class="bar"><div class="fill" style="width:55%"></div></div></div>
+          </div>
+          <p class="ship-desc">8-inch guns. Balanced armour and speed. Versatile fleet escort and raider.</p>
+        </div>
+
+        <div class="ship-card" data-ship="destroyer">
+          <div class="ship-silhouette destroyer-sil"></div>
+          <h3>DESTROYER</h3>
+          <p class="ship-class">e.g. USS Fletcher · IJN Fubuki · HMS Tribal</p>
+          <div class="ship-stats">
+            <div class="stat-row"><span>Armament</span><div class="bar"><div class="fill" style="width:40%"></div></div></div>
+            <div class="stat-row"><span>Armour</span><div class="bar"><div class="fill" style="width:12%"></div></div></div>
+            <div class="stat-row"><span>Speed</span><div class="bar"><div class="fill" style="width:100%"></div></div></div>
+            <div class="stat-row"><span>HP</span><div class="bar"><div class="fill" style="width:25%"></div></div></div>
+          </div>
+          <p class="ship-desc">5-inch guns + torpedoes. Fragile but blazing fast. Strike hard and evade.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Battle Scenario -->
+    <section class="section-block" id="battle-selection">
+      <h2>Historical Engagement</h2>
+      <div class="scenario-list">
+        <div class="scenario-item selected" data-scenario="jutland">
+          <div class="scenario-header">
+            <span class="scenario-name">Battle of Jutland</span>
+            <span class="scenario-date">31 May 1916 · North Sea</span>
+          </div>
+          <p>Grand Fleet vs. High Seas Fleet. The largest naval battle in history. Heavily armed dreadnoughts face off in reduced visibility.</p>
+        </div>
+        <div class="scenario-item" data-scenario="surigao">
+          <div class="scenario-header">
+            <span class="scenario-name">Battle of Surigao Strait</span>
+            <span class="scenario-date">25 Oct 1944 · Philippines</span>
+          </div>
+          <p>The last battleship-vs-battleship engagement. IJN Southern Force attempts a night passage into Leyte Gulf.</p>
+        </div>
+        <div class="scenario-item" data-scenario="north_cape">
+          <div class="scenario-header">
+            <span class="scenario-name">Battle of North Cape</span>
+            <span class="scenario-date">26 Dec 1943 · Arctic Ocean</span>
+          </div>
+          <p>HMS Duke of York hunts the Scharnhorst through Arctic darkness. A cruiser-destroyer screen closes the trap.</p>
+        </div>
+        <div class="scenario-item" data-scenario="cape_esperance">
+          <div class="scenario-header">
+            <span class="scenario-name">Battle of Cape Esperance</span>
+            <span class="scenario-date">11–12 Oct 1942 · Guadalcanal</span>
+          </div>
+          <p>Night action off Guadalcanal. Cruisers and destroyers fight in darkness — identification is deadly.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Difficulty -->
+    <section class="section-block" id="difficulty-selection">
+      <h2>AI Difficulty</h2>
+      <div class="difficulty-btns">
+        <button class="diff-btn" data-diff="easy">
+          <span class="diff-label">NOVICE</span>
+          <span class="diff-desc">Poor fire control · slow reaction</span>
+        </button>
+        <button class="diff-btn selected" data-diff="normal">
+          <span class="diff-label">VETERAN</span>
+          <span class="diff-desc">Historical accuracy · realistic gunnery</span>
+        </button>
+        <button class="diff-btn" data-diff="hard">
+          <span class="diff-label">ADMIRAL</span>
+          <span class="diff-desc">Expert fire control · aggressive tactics</span>
+        </button>
+      </div>
+    </section>
+
+    <button id="start-battle-btn" class="btn-primary">ENGAGE</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ LOADING ═══ -->
+<div id="loading-screen" style="display:none">
+  <div class="loading-content">
+    <div class="loading-title">PREPARING FOR BATTLE</div>
+    <div class="loading-bar-wrap"><div id="loading-bar"></div></div>
+    <div id="loading-text">Initialising...</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ GAME HUD ═══ -->
+<div id="game-hud" style="display:none">
+
+  <!-- Top bar -->
+  <div id="hud-top">
+    <div class="hud-panel" id="hud-scenario-name"></div>
+    <div class="hud-panel" id="hud-time"></div>
+    <div class="hud-panel" id="hud-enemies-remaining"></div>
+  </div>
+
+  <!-- Left: Ship status -->
+  <div id="hud-left">
+    <div class="hud-panel" id="hud-ship-name"></div>
+    <div class="status-block">
+      <div class="status-label">HULL</div>
+      <div class="hp-bar-wrap"><div id="hp-bar" class="hp-bar"></div></div>
+      <div id="hp-value" class="status-value">100%</div>
+    </div>
+    <div class="status-block">
+      <div class="status-label">PROPULSION</div>
+      <div class="hp-bar-wrap"><div id="prop-bar" class="hp-bar prop"></div></div>
+    </div>
+    <div class="status-block">
+      <div class="status-label">FIRE CONTROL</div>
+      <div class="hp-bar-wrap"><div id="fc-bar" class="hp-bar fc"></div></div>
+    </div>
+    <div id="damage-reports" class="damage-list"></div>
+  </div>
+
+  <!-- Bottom: Navigation -->
+  <div id="hud-bottom">
+    <div class="nav-block">
+      <div class="nav-label">HDG</div>
+      <div id="hud-heading" class="nav-value">000°</div>
+    </div>
+    <div class="nav-block">
+      <div class="nav-label">SPD</div>
+      <div id="hud-speed" class="nav-value">0 kts</div>
+    </div>
+    <div class="nav-block compass-block">
+      <canvas id="compass-canvas" width="80" height="80"></canvas>
+    </div>
+    <div class="nav-block">
+      <div class="nav-label">RANGE</div>
+      <div id="hud-range" class="nav-value">—</div>
+    </div>
+    <div class="nav-block">
+      <div class="nav-label">BEARING</div>
+      <div id="hud-bearing" class="nav-value">—</div>
+    </div>
+  </div>
+
+  <!-- Right: Gunnery -->
+  <div id="hud-right">
+    <div class="hud-panel">GUNNERY</div>
+    <div class="gun-block">
+      <div class="gun-label">TARGET</div>
+      <div id="gun-target" class="gun-value">NO TARGET</div>
+    </div>
+    <div class="gun-block">
+      <div class="gun-label">ELEVATION</div>
+      <div id="gun-elevation" class="gun-value">0.0°</div>
+    </div>
+    <div class="gun-block">
+      <div class="gun-label">TRAVERSE</div>
+      <div id="gun-traverse" class="gun-value">0.0°</div>
+    </div>
+    <div class="gun-block">
+      <div class="gun-label">RELOAD</div>
+      <div id="gun-reload" class="gun-value reload-ready">READY</div>
+    </div>
+    <div id="torpedo-block" class="gun-block" style="display:none">
+      <div class="gun-label">TORPEDOES</div>
+      <div id="torpedo-count" class="gun-value">8</div>
+    </div>
+    <div class="gun-block">
+      <div class="gun-label">SALVO MODE</div>
+      <div id="salvo-mode" class="gun-value">FULL SALVO</div>
+    </div>
+  </div>
+
+  <!-- Crosshair / gun sight -->
+  <div id="gun-sight" style="display:none">
+    <svg width="120" height="120" viewBox="0 0 120 120">
+      <circle cx="60" cy="60" r="40" fill="none" stroke="rgba(255,200,0,0.7)" stroke-width="1"/>
+      <circle cx="60" cy="60" r="3" fill="rgba(255,200,0,0.9)"/>
+      <line x1="20" y1="60" x2="50" y2="60" stroke="rgba(255,200,0,0.7)" stroke-width="1"/>
+      <line x1="70" y1="60" x2="100" y2="60" stroke="rgba(255,200,0,0.7)" stroke-width="1"/>
+      <line x1="60" y1="20" x2="60" y2="50" stroke="rgba(255,200,0,0.7)" stroke-width="1"/>
+      <line x1="60" y1="70" x2="60" y2="100" stroke="rgba(255,200,0,0.7)" stroke-width="1"/>
+      <!-- Range stadia lines -->
+      <line x1="40" y1="52" x2="80" y2="52" stroke="rgba(255,200,0,0.4)" stroke-width="0.5"/>
+      <line x1="44" y1="46" x2="76" y2="46" stroke="rgba(255,200,0,0.3)" stroke-width="0.5"/>
+    </svg>
+    <div id="sight-range-label">—</div>
+  </div>
+
+  <!-- View mode indicator -->
+  <div id="view-mode-indicator">BRIDGE VIEW</div>
+
+  <!-- Controls overlay -->
+  <div id="controls-help">
+    <div>W/S — Throttle &nbsp;|&nbsp; A/D — Rudder</div>
+    <div>Mouse — Look &nbsp;|&nbsp; RMB — Gun Sight</div>
+    <div>LMB — Fire &nbsp;|&nbsp; T — Next Target &nbsp;|&nbsp; V — View Toggle</div>
+    <div>1/2/3 — Ahead Slow/Half/Full &nbsp;|&nbsp; X — All Stop</div>
+    <div id="torpedo-help" style="display:none">F — Fire Torpedo</div>
+    <div>ESC — Menu</div>
+  </div>
+
+  <!-- Kill feed -->
+  <div id="kill-feed"></div>
+
+  <!-- Flash/hit indicator -->
+  <div id="hit-flash"></div>
+  <div id="hit-indicator"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ END SCREEN ═══ -->
+<div id="end-screen" style="display:none">
+  <div class="end-content">
+    <div id="end-result" class="end-result"></div>
+    <div id="end-detail" class="end-detail"></div>
+    <div id="end-stats" class="end-stats"></div>
+    <div class="end-btns">
+      <button class="btn-primary" id="play-again-btn">PLAY AGAIN</button>
+      <button class="btn-secondary" id="main-menu-btn">MAIN MENU</button>
+    </div>
+  </div>
+</div>
+
+<!-- Three.js from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<!-- Game modules (load order matters) -->
+<script src="js/config.js"></script>
+<script src="js/ballistics.js"></script>
+<script src="js/rendering/ocean.js"></script>
+<script src="js/rendering/effects.js"></script>
+<script src="js/ships/ship.js"></script>
+<script src="js/ai/ai.js"></script>
+<script src="js/battle/scenarios.js"></script>
+<script src="js/ui/hud.js"></script>
+<script src="js/game.js"></script>
+
+</body>
+</html>
