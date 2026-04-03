@@ -15,6 +15,7 @@ const SHIP_DEFS = {
 
   battleship: {
     name:        'Battleship',
+    typeAbbr:    'BB',
     length:      22,           // units (220 m)
     beam:        3,            // units (30 m)
     maxHp:       3000,
@@ -28,7 +29,7 @@ const SHIP_DEFS = {
       turrets:   3,
       muzzleVel: 820,          // m/s
       range:     280,          // units (2.8 km game range — compressed scale)
-      reloadTime: 28,          // seconds
+      reloadTime: 14,          // seconds (halved for playability)
       shellMass: 1225,         // kg
       armorPen:  600,          // mm RHA at 10 km
       dispersion: 0.0014,      // base Gaussian sigma (world units per unit range)
@@ -48,6 +49,7 @@ const SHIP_DEFS = {
 
   cruiser: {
     name:        'Heavy Cruiser',
+    typeAbbr:    'CA',
     length:      18,
     beam:        2.2,
     maxHp:       1200,
@@ -61,7 +63,7 @@ const SHIP_DEFS = {
       turrets:   4,
       muzzleVel: 855,
       range:     220,
-      reloadTime: 15,
+      reloadTime: 8,           // halved from 15s
       shellMass: 118,
       armorPen:  140,
       dispersion: 0.0016,
@@ -86,6 +88,7 @@ const SHIP_DEFS = {
 
   destroyer: {
     name:        'Destroyer',
+    typeAbbr:    'DD',
     length:      12,
     beam:        1.3,
     maxHp:       450,
@@ -99,7 +102,7 @@ const SHIP_DEFS = {
       turrets:   5,
       muzzleVel: 792,
       range:     130,
-      reloadTime: 8,
+      reloadTime: 4,           // halved from 8s
       shellMass: 25,
       armorPen:  40,
       dispersion: 0.0020,

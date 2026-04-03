@@ -27,7 +27,8 @@ class AIController {
   /**
    * @param {Ship[]} friendlyTargets — ships this AI may fire on
    */
-  update(dt, friendlyTargets, effects) {
+  update(dt, friendlyTargets, effects, spawnTorpedoCb) {
+    this._spawnTorpedoCb = spawnTorpedoCb || null;
     const ship = this.ship;
     if (!ship.isAlive) return;
 
@@ -52,7 +53,7 @@ class AIController {
     this._setSpeed(dist);
     this._maneuver(dt);
     this._gunnery(dt, dist, effects);
-    this._torpedoes(dist, effects);
+    this._torpedoes(dist, effects, this._spawnTorpedoCb);
   }
 
   _pickTarget(candidates) {
@@ -221,28 +222,30 @@ class AIController {
     }
   }
 
-  _torpedoes(dist, effects) {
+  _torpedoes(dist, effects, spawnTorpedoCb) {
     const ship = this.ship;
     if (!ship.canTorpedo() || !ship.torpDef) return;
 
     const torpRange = ship.torpDef.range;
     if (dist > torpRange * 0.85) return;
 
-    // Fire probabilistically (not every frame)
-    if (Math.random() < 0.004) {
+    // Fire roughly once every 20-40 seconds probabilistically
+    if (Math.random() < 0.003) {
       ship.fireTorpedo();
-      const hitChance = 0.40 - (dist / torpRange) * 0.25;
-      if (Math.random() < Math.max(0.05, hitChance)) {
-        const torp = this.target;
-        const ttof = dist / ship.torpDef.speed;
-        setTimeout(() => {
-          if (!torp.isAlive) return;
-          const dmg = Ballistics.torpedoDamage(ship.torpDef);
-          torp.applyDamage(dmg, effects);
-          ship.damageDealt += dmg.damage;
-          if (effects) effects.explosion({ x: torp.position.x, z: torp.position.z }, 2.5);
-          if (!torp.isAlive && effects) effects.sinkShip(torp.group);
-        }, ttof * 1000);
+
+      if (spawnTorpedoCb) {
+        // Lead the target: aim at where target will be when torpedo arrives
+        const target = this.target;
+        const ttof   = dist / ship.torpDef.speed;
+        const leadX  = target.position.x + target.velocity.x * ttof;
+        const leadZ  = target.position.z + target.velocity.z * ttof;
+        const aimAngle = Math.atan2(
+          leadX - ship.position.x,
+          leadZ - ship.position.z
+        );
+        // Small bearing error based on difficulty
+        const errBrg = (Math.random() - 0.5) * (this.diff.bearingErrorDeg * Math.PI / 180) * 3;
+        spawnTorpedoCb(ship, aimAngle + errBrg, false);
       }
     }
   }

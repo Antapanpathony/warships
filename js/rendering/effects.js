@@ -310,6 +310,44 @@ class EffectsManager {
     this._active.push(ticker);
   }
 
+  // ── Bow wake / foam trail ─────────────────────────────────
+  // Call each frame for each moving ship to leave a foam trail.
+  spawnWake(position, heading, speed, shipBeam) {
+    if (speed < 0.05) return;
+    if (Math.random() > speed * 1.5) return; // sparse at low speed
+
+    // Stern position (behind the ship)
+    const sternDist = shipBeam * 2.5;
+    const sx = position.x - Math.sin(heading) * sternDist;
+    const sz = position.z - Math.cos(heading) * sternDist;
+
+    // Two foam streaks, port and starboard
+    for (let side = -1; side <= 1; side += 2) {
+      const perpX =  Math.cos(heading) * shipBeam * 0.5 * side;
+      const perpZ = -Math.sin(heading) * shipBeam * 0.5 * side;
+
+      const geo  = new THREE.SphereGeometry(0.18 + Math.random() * 0.18, 4, 3);
+      const mat  = new THREE.MeshBasicMaterial({
+        color: 0xddeeff,
+        transparent: true,
+        opacity: 0.55,
+      });
+      const puff = new THREE.Mesh(geo, mat);
+      puff.position.set(sx + perpX, 0.05, sz + perpZ);
+      this.scene.add(puff);
+
+      let t = 0;
+      const ticker = (dt) => {
+        t += dt;
+        puff.scale.setScalar(1 + t * 1.2);
+        puff.material.opacity = Math.max(0, 0.55 - t * 0.6);
+        if (t > 1.2) { this.scene.remove(puff); return false; }
+        return true;
+      };
+      this._active.push(ticker);
+    }
+  }
+
   // ── Update all active effects ────────────────────────────
   update(dt) {
     this._active = this._active.filter(fn => fn(dt) !== false);

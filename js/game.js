@@ -21,6 +21,9 @@ const Game = (() => {
   // Label overlays (tactical view)
   let labelContainer = null;
 
+  // Live torpedo objects (physics)
+  const torpedoObjects = [];
+
   // Input
   const keys = {};
   let mouseDX = 0, mouseDY = 0;
@@ -355,33 +358,129 @@ const Game = (() => {
     }
   }
 
+  // ── Torpedo physics ───────────────────────────────────────
+  // Torpedoes travel as real world objects fired in the direction
+  // the player is looking (gun angle).  Enemy AI torpedoes also
+  // use this system so the player can visually dodge them.
+
+  function _spawnTorpedo(shooter, firingAngle, isPlayerShot) {
+    const def   = shooter.torpDef;
+    const speed = def.speed;
+
+    // Start at the bow of the shooter
+    const bowOffset = shooter.def.length * 0.5 + 1;
+    const startX = shooter.position.x + Math.sin(firingAngle) * bowOffset;
+    const startZ = shooter.position.z + Math.cos(firingAngle) * bowOffset;
+
+    // Build a simple visual: small sphere + trailing wake line
+    const geo  = new THREE.SphereGeometry(0.18, 5, 4);
+    const mat  = new THREE.MeshBasicMaterial({ color: 0x88ddff });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(startX, 0.1, startZ);
+    scene.add(mesh);
+
+    // Wake trail (line)
+    const wakeGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(startX, 0.05, startZ),
+      new THREE.Vector3(startX, 0.05, startZ),
+    ]);
+    const wakeMat  = new THREE.LineBasicMaterial({ color: 0xaaddff, transparent: true, opacity: 0.5 });
+    const wakeLine = new THREE.Line(wakeGeo, wakeMat);
+    scene.add(wakeLine);
+
+    const torp = {
+      pos:        new THREE.Vector3(startX, 0.1, startZ),
+      prevPos:    new THREE.Vector3(startX, 0.1, startZ),
+      vx:         Math.sin(firingAngle) * speed,
+      vz:         Math.cos(firingAngle) * speed,
+      speed,
+      distTravelled: 0,
+      maxDist:    def.range,
+      torpDef:    def,
+      shooter,
+      isPlayerShot,
+      mesh,
+      wakeLine,
+    };
+    torpedoObjects.push(torp);
+  }
+
   function _fireTorpedo() {
     if (!player.canTorpedo()) return;
-    const target = getTarget();
-    if (!target) return;
-
     player.fireTorpedo();
-    const dist    = player.distanceTo(target);
-    const hitProb = 0.45 - (dist / player.torpDef.range) * 0.30;
+    // Fire in the direction the camera / guns are currently pointing
+    _spawnTorpedo(player, player.gunAngle, true);
+    hud.addKillEntry('TORPEDOES AWAY — aim ahead of target!');
+  }
 
-    hud.addKillEntry('TORPEDOES AWAY');
+  function _updateTorpedoes(dt) {
+    for (let i = torpedoObjects.length - 1; i >= 0; i--) {
+      const t = torpedoObjects[i];
 
-    if (Math.random() < Math.max(0.05, hitProb)) {
-      const ttof = dist / player.torpDef.speed;
-      setTimeout(() => {
-        if (!target.isAlive) return;
-        const dmg = Ballistics.torpedoDamage(player.torpDef);
-        target.applyDamage(dmg, effects);
-        player.damageDealt += dmg.damage;
-        effects.explosion({ x: target.position.x, z: target.position.z }, 2.5);
-        hud.addKillEntry(`TORPEDO HIT — ${target.name} (${dmg.damage} dmg)`);
-        if (!target.isAlive) {
-          hud.addKillEntry(`✦ ${target.name} SUNK`);
-          effects.sinkShip(target.group);
+      t.prevPos.copy(t.pos);
+      t.pos.x += t.vx * dt;
+      t.pos.z += t.vz * dt;
+      t.distTravelled += t.speed * dt;
+
+      // Update mesh position
+      t.mesh.position.copy(t.pos);
+
+      // Update wake line (from prev to current)
+      const wakeLen = Math.min(6, t.distTravelled);
+      const wakeGeo = t.wakeLine.geometry;
+      wakeGeo.setFromPoints([
+        new THREE.Vector3(
+          t.pos.x - (t.vx / t.speed) * wakeLen,
+          0.05,
+          t.pos.z - (t.vz / t.speed) * wakeLen
+        ),
+        new THREE.Vector3(t.pos.x, 0.05, t.pos.z),
+      ]);
+
+      // Spawn foam periodically
+      if (Math.random() < dt * 8) {
+        effects.nearMiss({ x: t.pos.x, z: t.pos.z });
+      }
+
+      // Collision detection — check against appropriate targets
+      const targets = t.isPlayerShot
+        ? enemies
+        : [player, ...allies];
+
+      let destroyed = false;
+      for (const ship of targets) {
+        if (!ship.isAlive) continue;
+        const dx = ship.position.x - t.pos.x;
+        const dz = ship.position.z - t.pos.z;
+        const d  = Math.sqrt(dx * dx + dz * dz);
+        const hitR = ship.def.hitbox.halfBeam * 1.8;
+
+        if (d < hitR) {
+          // Hit!
+          const dmg = Ballistics.torpedoDamage(t.torpDef);
+          ship.applyDamage(dmg, effects);
+          effects.explosion({ x: ship.position.x, z: ship.position.z }, 2.5);
+
+          if (t.isPlayerShot) {
+            player.damageDealt += dmg.damage;
+            player.torpsFired++;  // count only confirmed hits for stats
+            hud.addKillEntry(`TORPEDO HIT — ${ship.name} (${dmg.damage} dmg)`);
+          }
+          if (!ship.isAlive) {
+            effects.sinkShip(ship.group);
+            hud.addKillEntry(`✦ ${ship.name} SUNK`);
+          }
+          destroyed = true;
+          break;
         }
-      }, ttof * 1000);
-    } else {
-      hud.addKillEntry('TORPEDO MISSED');
+      }
+
+      if (destroyed || t.distTravelled >= t.maxDist) {
+        scene.remove(t.mesh);
+        scene.remove(t.wakeLine);
+        torpedoObjects.splice(i, 1);
+        if (!destroyed) effects.splash({ x: t.pos.x, z: t.pos.z });
+      }
     }
   }
 
@@ -408,8 +507,8 @@ const Game = (() => {
 
   function _updateCamera(dt) {
     const sensitivity = 0.0018;
-    CAM.yaw   -= mouseDX * sensitivity;
-    CAM.pitch -= mouseDY * sensitivity;
+    CAM.yaw   += mouseDX * sensitivity;   // + = mouse right → look right
+    CAM.pitch -= mouseDY * sensitivity;   // - = mouse up    → look up
     CAM.pitch  = Math.max(CAM.pitchMin, Math.min(CAM.pitchMax, CAM.pitch));
     mouseDX    = 0;
     mouseDY    = 0;
@@ -430,13 +529,17 @@ const Game = (() => {
       const totalYaw   = player.heading + CAM.yaw;
       const totalPitch = CAM.pitch + player.group.rotation.x * 0.3 + shakeY;
 
+      // Three.js default look direction is -Z.
+      // Ship heading=0 means moving toward +Z, so camera must rotate by PI.
+      // Formula: rotation.y = PI - totalYaw  (clockwise heading → CCW Three.js)
       camera.rotation.order = 'YXZ';
-      camera.rotation.y     = -totalYaw + shakeX;
+      camera.rotation.y     = Math.PI - totalYaw + shakeX;
       camera.rotation.x     = totalPitch;
-      camera.rotation.z     = -player.group.rotation.z * 0.5;
+      camera.rotation.z     = player.group.rotation.z * 0.5;  // lean with ship roll
 
+      // gunAngle = absolute world heading the guns point toward
       player.gunAngle     = totalYaw;
-      player.gunElevation = Math.max(0, -totalPitch * 1.5);
+      player.gunElevation = Math.max(0, totalPitch * 1.5);  // pitch up = elevate guns
 
       camera.fov = viewMode === 'gunSight' ? 16 : 70;
       camera.updateProjectionMatrix();
@@ -483,20 +586,25 @@ const Game = (() => {
       const isEnemy  = enemies.includes(ship);
       const isAlly   = allies.includes(ship);
       const isP      = ship === player;
-      const color    = isP ? '#4488cc' : isAlly ? '#3ddc84' : '#e5473d';
+      // Color by allegiance
+      const color    = isP ? '#5599dd' : isAlly ? '#3ddc84' : '#e5473d';
       const hpPct    = Math.round(ship.getHpPercent() * 100);
+      const abbr     = ship.def.typeAbbr || '??';
 
       const el = document.createElement('div');
       el.style.cssText = `
         position:absolute;
-        left:${screenPos.x}px; top:${screenPos.y - 22}px;
+        left:${screenPos.x}px; top:${screenPos.y - 26}px;
         transform:translateX(-50%);
         color:${color};
-        text-shadow:0 1px 3px #000;
+        text-shadow:0 1px 3px #000, 0 1px 3px #000;
         white-space:nowrap;
         pointer-events:none;
+        line-height:1.4;
+        text-align:center;
       `;
-      el.textContent = `${ship.name} ${hpPct}%`;
+      // Two lines: name on top, type+HP below
+      el.innerHTML = `<div>${ship.name}</div><div style="opacity:0.75;font-size:0.55rem">[${abbr}] ${hpPct}%</div>`;
       labelContainer.appendChild(el);
 
       // Small dot at ship position
@@ -553,7 +661,7 @@ const Game = (() => {
       e.update(dt);
       // Enemies pick the nearest of: player + allies
       const friendlies = [player, ...allies].filter(s => s.isAlive);
-      ai.update(dt, friendlies, effects);
+      ai.update(dt, friendlies, effects, _spawnTorpedo);
     }
 
     // Allies target enemies
@@ -563,7 +671,7 @@ const Game = (() => {
       if (!a.isAlive) continue;
       a.update(dt);
       const liveEnemies = enemies.filter(e => e.isAlive);
-      ai.update(dt, liveEnemies, effects);
+      ai.update(dt, liveEnemies, effects, _spawnTorpedo);
 
       // Announce ally kills
       if (!a.isAlive) {
@@ -659,8 +767,17 @@ const Game = (() => {
     _updateInput(dt);
     player.update(dt);
     _updateAI(dt);
+    _updateTorpedoes(dt);
     ocean.update(dt);
     effects.update(dt);
+
+    // Bow wake for all moving ships
+    const allShips = [player, ...enemies, ...allies];
+    for (const s of allShips) {
+      if (s.isAlive && s.speed > 0.05) {
+        effects.spawnWake(s.position, s.heading, s.speed / s.maxSpeed, s.def.beam);
+      }
+    }
 
     const target       = getTarget();
     const enemiesAlive = enemies.filter(e => e.isAlive).length;

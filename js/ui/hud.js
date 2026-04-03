@@ -59,7 +59,8 @@ class HUD {
     this._updateGunnery(player, target);
     this._updateTopBar(scenario, enemiesAlive, elapsed);
     if (target) {
-      this._els.gunTarget.textContent = target.name;
+      const abbr = target.def ? target.def.typeAbbr || '' : '';
+      this._els.gunTarget.textContent = abbr ? `${target.name} [${abbr}]` : target.name;
     } else {
       this._els.gunTarget.textContent = 'NO TARGET';
     }
