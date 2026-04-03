@@ -134,11 +134,30 @@ const Ballistics = (() => {
   }
 
   /**
+   * OBB hit check — transforms impact point into ship's local frame and checks
+   * against the ship's half-length and half-beam.
+   * targetHeading: ship heading in radians (0 = north/+Z).
+   */
+  function obbHit(impactX, impactZ, targetX, targetZ, targetHeading, hitbox) {
+    // Translate to target-centred coords
+    const rx = impactX - targetX;
+    const rz = impactZ - targetZ;
+    // Rotate into ship-local frame (ship's bow = +Z in local space)
+    const cosH =  Math.cos(targetHeading);
+    const sinH =  Math.sin(targetHeading);
+    const localX = rx * cosH - rz * sinH;  // beam axis
+    const localZ = rx * sinH + rz * cosH;  // length axis
+    return Math.abs(localX) <= hitbox.halfBeam && Math.abs(localZ) <= hitbox.halfLen;
+  }
+
+  /**
    * Full shot simulation: given shooter and target, returns
    * { hit: bool, dmgResult, impactPos, tof, elevation }
+   * targetHeading: target ship heading (radians) for OBB hit detection.
    */
   function simulateShot(gunDef, shooterPos, targetPos, targetArmour,
-                        targetVel = {x:0,z:0}, fcDamage = 0, addNoise = true) {
+                        targetVel = {x:0,z:0}, fcDamage = 0, addNoise = true,
+                        targetHitbox = null, targetHeading = 0) {
     const dx = targetPos.x - shooterPos.x;
     const dz = targetPos.z - shooterPos.z;
     const distUnits  = Math.sqrt(dx * dx + dz * dz);
@@ -163,25 +182,28 @@ const Ballistics = (() => {
     let finalZ = predicted.z;
 
     if (addNoise) {
-      // Box-Muller random for Gaussian dispersion
+      // Box-Muller Gaussian dispersion in range and bearing independently
       const u1 = Math.random(), u2 = Math.random();
-      const gauss = Math.sqrt(-2 * Math.log(u1 + 1e-9)) * Math.cos(2 * Math.PI * u2);
-      const gauss2= Math.sqrt(-2 * Math.log(u2 + 1e-9)) * Math.cos(2 * Math.PI * u1);
+      const gauss  = Math.sqrt(-2 * Math.log(u1 + 1e-9)) * Math.cos(2 * Math.PI * u2);
+      const gauss2 = Math.sqrt(-2 * Math.log(u2 + 1e-9)) * Math.cos(2 * Math.PI * u1);
       finalX += gauss  * spread;
       finalZ += gauss2 * spread;
     }
 
-    // Hit check: compare impact point to target bounding radius
-    const impactDx = finalX - targetPos.x;
-    const impactDz = finalZ - targetPos.z;
-    const impactDist = Math.sqrt(impactDx * impactDx + impactDz * impactDz);
+    // Determine hit zone
+    let hitZone = useHighAngle ? 'deck' : 'belt';
 
-    // Determine hit zone (simplified: check if below or above waterline)
-    let hitZone = 'belt';
-    if (useHighAngle) hitZone = 'deck';
-
-    const targetRadius = 2.0; // approximate width in units for hit detection
-    const hit = impactDist < targetRadius;
+    // Hit detection: OBB if hitbox provided, otherwise sphere fallback
+    let hit;
+    if (targetHitbox) {
+      // OBB — correct for ship orientation
+      hit = obbHit(finalX, finalZ, targetPos.x, targetPos.z, targetHeading, targetHitbox);
+    } else {
+      const impactDx   = finalX - targetPos.x;
+      const impactDz   = finalZ - targetPos.z;
+      const impactDist = Math.sqrt(impactDx * impactDx + impactDz * impactDz);
+      hit = impactDist < 3.0;
+    }
 
     let dmgResult = null;
     if (hit) {
@@ -211,6 +233,7 @@ const Ballistics = (() => {
     dispersion,
     leadTarget,
     simulateShot,
+    obbHit,
     toM,
     toU,
   };
