@@ -12,8 +12,7 @@ const Game = (() => {
   let player, enemies, allies;
   let enemyAIs, allyAIs;
   let scenario, scenarioCfg, difficulty;
-  let viewMode = 'bridge';
-  let targetIdx = 0;
+  let viewMode = 'chase';  // chase | bridge | gunSight | overhead  let targetIdx = 0;
   let elapsed   = 0;
   let gameOver  = false;
   let gameStarted = false;
@@ -33,9 +32,8 @@ const Game = (() => {
   const CAM = {
     yaw:          0,
     pitch:        0,
-    pitchMin:    -0.35,
-    pitchMax:     0.45,
-    bridgeHeight: 0,
+    pitchMin:    -0.38,
+    pitchMax:     0.50,
   };
 
   // ── Init ──────────────────────────────────────────────────
@@ -175,7 +173,7 @@ const Game = (() => {
     player.heading = scenConf.playerStart.heading;
     player.targetSpeed = player.maxSpeed * 0.5;
     scene.add(player.group);
-    CAM.bridgeHeight = SHIP_DEFS[shipType].beam * 1.5;
+    // bridgeHeight computed per-frame from def.beam in _updateCamera
 
     // Intercept player damage for HUD flash
     const origApply = player.applyDamage.bind(player);
@@ -284,14 +282,14 @@ const Game = (() => {
   }
 
   function _cycleView() {
-    const modes = ['bridge', 'gunSight', 'overhead'];
+    const modes = ['chase', 'bridge', 'gunSight', 'overhead'];
     viewMode    = modes[(modes.indexOf(viewMode) + 1) % modes.length];
     hud.setViewMode(viewMode);
     hud.showGunSight(viewMode === 'gunSight');
   }
 
   function _toggleGunSight() {
-    viewMode = viewMode === 'gunSight' ? 'bridge' : 'gunSight';
+    viewMode = viewMode === 'gunSight' ? 'chase' : 'gunSight';
     hud.setViewMode(viewMode);
     hud.showGunSight(viewMode === 'gunSight');
   }
@@ -326,7 +324,7 @@ const Game = (() => {
     if (!result.outOfRange) {
       const impactVec = new THREE.Vector3(result.impactPos.x, 0, result.impactPos.z);
       effects.addShellTracer(
-        player.position.clone().add(new THREE.Vector3(0, CAM.bridgeHeight, 0)),
+        player.position.clone().add(new THREE.Vector3(0, player.def.beam * 0.6, 0)),
         impactVec,
         result.tof,
         player.gunDef.calibre
@@ -504,11 +502,13 @@ const Game = (() => {
   }
 
   // ── Camera ───────────────────────────────────────────────
+  // Smoothed camera position for chase mode
+  const _camSmoothPos = new THREE.Vector3();
 
   function _updateCamera(dt) {
     const sensitivity = 0.0018;
-    CAM.yaw   += mouseDX * sensitivity;   // + = mouse right → look right
-    CAM.pitch -= mouseDY * sensitivity;   // - = mouse up    → look up
+    CAM.yaw   += mouseDX * sensitivity;
+    CAM.pitch -= mouseDY * sensitivity;
     CAM.pitch  = Math.max(CAM.pitchMin, Math.min(CAM.pitchMax, CAM.pitch));
     mouseDX    = 0;
     mouseDY    = 0;
@@ -521,55 +521,95 @@ const Game = (() => {
       shakeY = (Math.random() - 0.5) * _shakeAmt * frac;
     }
 
-    if (viewMode !== 'overhead') {
-      // Bridge / gun-sight
-      camera.position.copy(player.position);
-      camera.position.y += CAM.bridgeHeight;
+    const def = player.def;
+    labelContainer.style.display = 'none';
+
+    if (viewMode === 'chase') {
+      // ── Third-person chase cam ────────────────────────
+      // Camera position: behind ship (strictly based on ship heading,
+      // not gun angle) so the ship is always in frame.
+      // Camera LOOK: follows gun direction so you see where you're aiming.
+      const backDist = def.length * 0.85 + 4;
+      const upDist   = def.beam * 2.8;
+
+      // Orbit camera slightly (30%) in the direction of CAM.yaw
+      // so turning the guns edges the camera around to see the target.
+      const camOrbitAngle = player.heading + CAM.yaw * 0.30;
+      const desiredPos = new THREE.Vector3(
+        player.position.x - Math.sin(camOrbitAngle) * backDist,
+        player.position.y + upDist + shakeY * 0.5,
+        player.position.z - Math.cos(camOrbitAngle) * backDist
+      );
+
+      // Smooth chase (lerp toward desired position)
+      if (_camSmoothPos.lengthSq() === 0) _camSmoothPos.copy(desiredPos);
+      _camSmoothPos.lerp(desiredPos, Math.min(1, dt * 6));
+      camera.position.copy(_camSmoothPos);
+      camera.position.x += shakeX * 0.3;
+
+      // Look at gun-aim direction ahead of the ship
+      const gunAngle  = player.heading + CAM.yaw;
+      const lookDist  = 60;
+      const lookTarget = new THREE.Vector3(
+        player.position.x + Math.sin(gunAngle) * lookDist,
+        player.position.y + shakeY * 0.3,
+        player.position.z + Math.cos(gunAngle) * lookDist
+      );
+      camera.lookAt(lookTarget);
+
+      player.gunAngle     = gunAngle;
+      player.gunElevation = Math.max(0, CAM.pitch * 1.5);
+
+      camera.fov = 65;
+      camera.updateProjectionMatrix();
+
+    } else if (viewMode === 'bridge' || viewMode === 'gunSight') {
+      // ── First-person from mast top ────────────────────
+      // Position the camera ABOVE the tallest part of the superstructure
+      // and slightly forward so the hull/mast isn't in the frame.
+      const mastHeight = def.beam * 2.7;   // well above superstructure
+      const fwdOffset  = def.length * 0.10; // slightly toward bow
+
+      camera.position.set(
+        player.position.x + Math.sin(player.heading) * fwdOffset,
+        player.position.y + mastHeight + shakeY * 0.5,
+        player.position.z + Math.cos(player.heading) * fwdOffset
+      );
 
       const totalYaw   = player.heading + CAM.yaw;
-      const totalPitch = CAM.pitch + player.group.rotation.x * 0.3 + shakeY;
+      const totalPitch = CAM.pitch + shakeY * 0.3;
 
-      // Three.js default look direction is -Z.
-      // Ship heading=0 means moving toward +Z, so camera must rotate by PI.
-      // Formula: rotation.y = PI - totalYaw  (clockwise heading → CCW Three.js)
       camera.rotation.order = 'YXZ';
       camera.rotation.y     = Math.PI - totalYaw + shakeX;
       camera.rotation.x     = totalPitch;
-      camera.rotation.z     = player.group.rotation.z * 0.5;  // lean with ship roll
+      camera.rotation.z     = player.group.rotation.z * 0.4;
 
-      // gunAngle = absolute world heading the guns point toward
       player.gunAngle     = totalYaw;
-      player.gunElevation = Math.max(0, totalPitch * 1.5);  // pitch up = elevate guns
+      player.gunElevation = Math.max(0, totalPitch * 1.5);
 
-      camera.fov = viewMode === 'gunSight' ? 16 : 70;
+      camera.fov = viewMode === 'gunSight' ? 14 : 68;
       camera.updateProjectionMatrix();
-
-      // Hide labels in bridge mode
-      labelContainer.style.display = 'none';
 
     } else {
       // ── Tactical overhead ──────────────────────────────
       labelContainer.style.display = 'block';
 
-      // Find spread of all ships to auto-zoom
       const allShips = [player, ...enemies, ...allies].filter(s => s.isAlive);
       let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
       for (const s of allShips) {
         minX = Math.min(minX, s.position.x); maxX = Math.max(maxX, s.position.x);
         minZ = Math.min(minZ, s.position.z); maxZ = Math.max(maxZ, s.position.z);
       }
-      const spreadX   = maxX - minX;
-      const spreadZ   = maxZ - minZ;
       const midX      = (minX + maxX) / 2;
       const midZ      = (minZ + maxZ) / 2;
-      const camHeight = Math.max(100, Math.max(spreadX, spreadZ) * 0.85 + 40);
+      const spread    = Math.max(maxX - minX, maxZ - minZ, 80);
+      const camHeight = spread * 0.9 + 40;
 
-      camera.position.set(midX, camHeight, midZ + camHeight * 0.35);
+      camera.position.set(midX, camHeight, midZ + camHeight * 0.3);
       camera.lookAt(midX, 0, midZ);
       camera.fov = 60;
       camera.updateProjectionMatrix();
 
-      // Draw labels
       _updateLabels(allShips);
     }
   }

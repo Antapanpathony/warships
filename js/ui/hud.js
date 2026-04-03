@@ -216,8 +216,9 @@ class HUD {
 
   setViewMode(mode) {
     const labels = {
-      bridge:   'BRIDGE VIEW',
-      gunSight: 'GUN SIGHT',
+      chase:    'CHASE VIEW',
+      bridge:   'BRIDGE (MAST)',
+      gunSight: 'GUN SIGHT  ×7',
       overhead: 'TACTICAL',
     };
     this._els.viewMode.textContent = labels[mode] || mode.toUpperCase();
