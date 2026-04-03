@@ -527,15 +527,12 @@ const Game = (() => {
 
     if (viewMode === 'chase') {
       // ── Third-person chase cam ────────────────────────
-      // Camera position: behind ship (strictly based on ship heading,
-      // not gun angle) so the ship is always in frame.
-      // Camera LOOK: follows gun direction so you see where you're aiming.
+      // Camera position: strictly behind ship heading.
+      // Rudder turns the ship and the camera follows (stays behind).
+      // Mouse look only changes where we AIM, not where the camera sits.
       const backDist = def.length * 0.85 + 4;
       const upDist   = def.beam * 2.8;
-
-      // Orbit camera slightly (30%) in the direction of CAM.yaw
-      // so turning the guns edges the camera around to see the target.
-      const camOrbitAngle = player.heading + CAM.yaw * 0.30;
+      const camOrbitAngle = player.heading;
       const desiredPos = new THREE.Vector3(
         player.position.x - Math.sin(camOrbitAngle) * backDist,
         player.position.y + upDist + shakeY * 0.5,
