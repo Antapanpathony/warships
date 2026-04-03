@@ -12,7 +12,8 @@ const Game = (() => {
   let player, enemies, allies;
   let enemyAIs, allyAIs;
   let scenario, scenarioCfg, difficulty;
-  let viewMode = 'chase';  // chase | bridge | gunSight | overhead  let targetIdx = 0;
+  let viewMode = 'chase';  // chase | bridge | gunSight | overhead
+  let targetIdx = 0;
   let elapsed   = 0;
   let gameOver  = false;
   let gameStarted = false;
