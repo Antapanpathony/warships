@@ -572,7 +572,7 @@ const Game = (() => {
       const totalPitch = CAM.pitch + shakeY * 0.3;
 
       camera.rotation.order = 'YXZ';
-      camera.rotation.y     = Math.PI - totalYaw + shakeX;
+      camera.rotation.y     = Math.PI + totalYaw + shakeX;
       camera.rotation.x     = totalPitch;
       camera.rotation.z     = player.group.rotation.z * 0.4;
 

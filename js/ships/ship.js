@@ -447,7 +447,7 @@ class Ship {
 
   _updateModel() {
     this.group.position.copy(this.position);
-    this.group.rotation.y = -this.heading; // Y rotation = heading
+    this.group.rotation.y = this.heading;  // Y rotation = heading (bow faces +Z local = sin/cos heading world)
 
     // Subtle ship roll based on speed and turning
     const roll  = Math.sin(Date.now() / 2000) * 0.02 * (this.speed / this.maxSpeed);
