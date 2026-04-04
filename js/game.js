@@ -527,35 +527,29 @@ const Game = (() => {
 
     if (viewMode === 'chase') {
       // ── Third-person chase cam ────────────────────────
-      // Camera position: strictly behind ship heading.
-      // Rudder turns the ship and the camera follows (stays behind).
-      // Mouse look only changes where we AIM, not where the camera sits.
+      // Camera snaps rigidly to ship stern — no lerp so that turning
+      // the ship visibly rotates the world, not the camera.
+      // Mouse look only moves the gun, not the camera direction.
       const backDist = def.length * 0.85 + 4;
       const upDist   = def.beam * 2.8;
-      const camOrbitAngle = player.heading;
-      const desiredPos = new THREE.Vector3(
-        player.position.x - Math.sin(camOrbitAngle) * backDist,
-        player.position.y + upDist + shakeY * 0.5,
-        player.position.z - Math.cos(camOrbitAngle) * backDist
-      );
 
-      // Smooth chase (lerp toward desired position)
-      if (_camSmoothPos.lengthSq() === 0) _camSmoothPos.copy(desiredPos);
-      _camSmoothPos.lerp(desiredPos, Math.min(1, dt * 6));
-      camera.position.copy(_camSmoothPos);
+      // Snap directly behind the ship (ship-local space, no lag)
+      camera.position.set(
+        player.position.x - Math.sin(player.heading) * backDist,
+        player.position.y + upDist + shakeY * 0.3,
+        player.position.z - Math.cos(player.heading) * backDist
+      );
       camera.position.x += shakeX * 0.3;
 
-      // Look at gun-aim direction ahead of the ship
-      const gunAngle  = player.heading + CAM.yaw;
-      const lookDist  = 60;
-      const lookTarget = new THREE.Vector3(
-        player.position.x + Math.sin(gunAngle) * lookDist,
-        player.position.y + shakeY * 0.3,
-        player.position.z + Math.cos(gunAngle) * lookDist
+      // Look straight ahead along heading — turning the ship rotates the horizon
+      camera.lookAt(
+        player.position.x + Math.sin(player.heading) * 60,
+        player.position.y + shakeY * 0.2,
+        player.position.z + Math.cos(player.heading) * 60
       );
-      camera.lookAt(lookTarget);
 
-      player.gunAngle     = gunAngle;
+      // Gun angle follows mouse independently of camera view
+      player.gunAngle     = player.heading + CAM.yaw;
       player.gunElevation = Math.max(0, CAM.pitch * 1.5);
 
       camera.fov = 65;
